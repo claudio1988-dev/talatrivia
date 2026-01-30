@@ -1,3 +1,8 @@
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
+
 from app import create_app, db
 from flask_migrate import upgrade
 

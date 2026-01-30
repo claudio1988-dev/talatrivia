@@ -1,100 +1,96 @@
 # TalaTrivia
 
 API para gestionar un juego de trivia de recursos humanos.
-Desarrollado como desafío técnico para postulación a Software Developer Engineer en Talana.
 
 ## Tecnologías
 
-- **Python 3.10**: Lenguaje principal.
+- **Python 3.10+**: Lenguaje principal.
 - **Flask**: Framework web.
-- **PostgreSQL**: Base de datos relacional.
+- **SQLite**: Base de datos relacional (ligera y portable).
 - **SQLAlchemy**: ORM.
 - **Flask-JWT-Extended**: Autenticación JWT.
-- **Docker & Docker Compose**: Contenedorización y orquestación.
+- **Docker & Docker Compose**: Contenedorización para fácil despliegue.
 
 ## Cómo ejecutar el proyecto
 
-Prerrequisitos: Tener instalado Docker y Docker Compose.
+Tienes dos opciones para ejecutar el proyecto: usando Docker (recomendado para revisión rápida) o localmente.
 
-1. Clonar el repositorio (si aplica).
+### Opción A: Docker (Recomendada)
+
+Prerrequisitos: Tener instalado Docker Desktop.
+
+1. Clonar el repositorio.
 2. Navegar a la carpeta del proyecto.
-3. Construir y levantar los contenedores:
+3. Construir y levantar el contenedor:
 
 ```bash
 docker-compose up --build
 ```
 
 La API estará disponible en `http://localhost:5000`.
+La base de datos SQLite se creará automáticamente en la carpeta `instance/`.
+
+### Opción B: Ejecución Local
+
+1. Crear un entorno virtual:
+   ```bash
+   python -m venv venv
+   .\venv\Scripts\activate  # Windows
+   # source venv/bin/activate # Mac/Linux
+   ```
+2. Instalar dependencias:
+   ```bash
+   pip install -r requirements.txt
+   ```
+3. Ejecutar el servidor:
+   ```bash
+   python run.py
+   ```
+
+## Poblar Base de Datos (Seeding)
+
+Para facilitar las pruebas, se incluye un script que llena la base de datos con usuarios, preguntas reales de RRHH y una simulación de juego.
+
+**Ejecutar Seed:**
+
+```bash
+# Si usas Docker (en otra terminal)
+docker-compose exec web python seed.py
+
+# Si estás en local
+python seed.py
+```
+
+Esto creará:
+- **Admin**: `admin@talana.com` (Pass: `admin123`)
+- **Jugadores**: `jugador1@talana.com` a `jugador5@talana.com` (Pass: `123456`)
+- **Preguntas**: Sobre legislación laboral (Fácil, Media, Difícil).
+- **Trivia**: "Onboarding Talana 2026".
+- **Ranking**: Resultados simulados (Jugador 1 con puntaje perfecto).
 
 ## Endpoints Principales
 
 ### Autenticación
-- `POST /auth/register`: Registrar un nuevo usuario.
-  - Body: `{ "name": "Juan", "email": "juan@example.com", "password": "pass", "role": "player" }`
-- `POST /auth/login`: Iniciar sesión.
-  - Body: `{ "email": "juan@example.com", "password": "pass" }`
-  - Response: `{ "access_token": "..." }`
+- `POST /auth/register`: Registrar usuario.
+- `POST /auth/login`: Login (Devuelve JWT).
 
-### Usuarios y Preguntas (Admin)
-- `GET /users`: Listar usuarios.
-- `POST /questions`: Crear pregunta.
-  - Body: 
-    ```json
-    {
-      "text": "¿Pregunta?",
-      "difficulty": "EASY",
-      "options": [
-        {"text": "Opción 1", "is_correct": true},
-        {"text": "Opción 2", "is_correct": false}
-      ]
-    }
-    ```
-- `GET /questions`: Listar preguntas.
-
-### Trivias
-- `POST /trivias`: Crear una trivia y asignar preguntas/usuarios.
-  - Body:
-    ```json
-    {
-      "name": "Trivia RRHH 101",
-      "description": "Conceptos básicos",
-      "question_ids": [1, 2],
-      "user_ids": [1] 
-    }
-    ```
-- `GET /trivias`: Listar todas las trivias.
+### Gestión (Admin)
+- `POST /questions`: Crear pregunta (JSON incluye `options` y `difficulty`).
+- `POST /trivias`: Crear trivia asignando preguntas y usuarios.
+- `DELETE /questions/<id>`: Eliminar pregunta.
+- `DELETE /trivias/<id>`: Eliminar trivia.
 
 ### Juego (Jugador)
-- `GET /my-trivias`: (Auth Requerido) Ver trivias asignadas al usuario actual.
-- `GET /trivias/<id>/play`: (Auth Requerido) Obtener preguntas de la trivia (sin respuestas correctas).
-- `POST /trivias/<id>/submit`: (Auth Requerido) Enviar respuestas.
-  - Body:
-    ```json
-    {
-      "answers": [
-        {"question_id": 1, "option_id": 5},
-        {"question_id": 2, "option_id": 8}
-      ]
-    }
-    ```
+- `GET /my-trivias`: Ver trivias asignadas.
+- `GET /trivias/<id>/play`: Obtener preguntas para jugar.
+  - **Nota**: Este endpoint NO devuelve `is_correct` ni la dificultad, para evitar trampas.
+- `POST /trivias/<id>/submit`: Enviar respuestas.
+  - **Puntuación**: Se calcula automáticamente: 1 pto (Fácil), 2 ptos (Media), 3 ptos (Difícil).
+- `GET /trivias/<id>/ranking`: Ver tabla de posiciones ordenadas por puntaje.
 
-### Ranking
-- `GET /trivias/<id>/ranking`: Ver el ranking de usuarios para una trivia específica.
+## Decisiones de Diseño
 
-## Decisiones de Diseño y Supuestos
-
-1. **Puntajes**: Se siguió rigurosamente la regla: Easy=1, Medium=2, Hard=3 puntos.
-2. **Seguridad**: Se implementó autenticación JWT básica. Para jugar hay que estar autenticado y asignado a la trivia.
-3. **Privacidad**: El endpoint de juego no devuelve el campo `is_correct` ni la `difficulty` (para no dar pistas), cumpliendo con el requisito "No les muestres cuál es la respuesta correcta ni la dificultad".
-4. **Base de Datos**: Se usa PostgreSQL en Docker para persistencia robusta.
-5. **Asignación**: Se asumió que las trivias son "cerradas" o "asignadas" por un admin, por lo que se crean con una lista de IDs de usuarios permitidos.
-
-## Testing Manual (Ejemplo)
-
-1. Registrar un usuario (`POST /auth/register`).
-2. Loguearse (`POST /auth/login`) para obtener el token.
-3. Crear preguntas (`POST /questions`).
-4. Crear una trivia asignando al usuario y las preguntas (`POST /trivias`).
-5. Usar el token para obtener las preguntas (`GET /trivias/1/play`).
-6. Enviar respuestas (`POST /trivias/1/submit`).
-7. Consultar ranking (`GET /trivias/1/ranking`).
+1.  **Base de Datos**: Se migró a **SQLite** para simplificar la infraestructura y hacer el proyecto "autocontenido" y fácil de revisar sin configurar servicios externos de BD.
+2.  **Privacidad**: Se implementaron esquemas de serialización manuales en los endpoints de juego para asegurar que el cliente nunca reciba los datos de las respuestas correctas.
+3.  **Docker**: Se optimizó el Dockerfile y docker-compose para ser ligeros, eliminando la dependencia de un contenedor de Postgres pesado.
+4.  **Validaciones**: Se añadió lógica para impedir que un usuario responda una trivia más de una vez.

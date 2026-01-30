@@ -239,7 +239,7 @@ def get_ranking(trivia_id):
         ranking_data.append({
             "user": p.user.name,
             "score": p.score,
-            "completed_at": p.started_at # Should be completed_at if I added it, defaulting to started
+            "completed_at": p.completed_at
         })
         
     return jsonify(ranking_data)
