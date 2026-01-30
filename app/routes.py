@@ -21,7 +21,7 @@ trivias_schema = TriviaSchema(many=True)
 def register():
     data = request.get_json()
     if User.query.filter_by(email=data['email']).first():
-        return jsonify({"message": "Email already exists"}), 400
+        return jsonify({"message": "El correo electrónico ya existe"}), 400
     
     user = User(
         name=data['name'], 
@@ -41,10 +41,10 @@ def login():
     user = User.query.filter_by(email=data['email']).first()
     
     if user and user.password_hash and check_password_hash(user.password_hash, data['password']):
-        token = create_access_token(identity=user.id)
+        token = create_access_token(identity=str(user.id))
         return jsonify({"access_token": token, "user_id": user.id, "role": user.role.value})
     
-    return jsonify({"message": "Invalid credentials"}), 401
+    return jsonify({"message": "Credenciales inválidas"}), 401
 
 # --- Users ---
 @main_bp.route('/users', methods=['GET'])
@@ -81,6 +81,13 @@ def list_questions():
     questions = Question.query.all()
     return jsonify(questions_schema.dump(questions))
 
+@main_bp.route('/questions/<int:id>', methods=['DELETE'])
+def delete_question(id):
+    question = Question.query.get_or_404(id)
+    db.session.delete(question)
+    db.session.commit()
+    return jsonify({"message": "Pregunta eliminada"}), 200
+
 # --- Trivias ---
 @main_bp.route('/trivias', methods=['POST'])
 def create_trivia():
@@ -114,14 +121,7 @@ def delete_trivia(id):
     trivia = Trivia.query.get_or_404(id)
     db.session.delete(trivia)
     db.session.commit()
-    return jsonify({"message": "Trivia deleted"}), 200
-
-@main_bp.route('/questions/<int:id>', methods=['DELETE'])
-def delete_question(id):
-    question = Question.query.get_or_404(id)
-    db.session.delete(question)
-    db.session.commit()
-    return jsonify({"message": "Question deleted"}), 200
+    return jsonify({"message": "Trivia eliminada"}), 200
 
 # --- Participation ---
 @main_bp.route('/my-trivias', methods=['GET'])
@@ -146,7 +146,7 @@ def play_trivia(trivia_id):
     participation = TriviaParticipation.query.filter_by(trivia_id=trivia_id, user_id=current_user_id).first_or_404()
     
     if participation.completed:
-        return jsonify({"message": "You have already completed this trivia", "score": participation.score})
+        return jsonify({"message": "Ya has completado esta trivia", "score": participation.score})
         
     # Get questions for this trivia
     trivia_questions = TriviaQuestion.query.filter_by(trivia_id=trivia_id).all()
@@ -176,7 +176,7 @@ def submit_trivia(trivia_id):
     participation = TriviaParticipation.query.filter_by(trivia_id=trivia_id, user_id=current_user_id).first_or_404()
     
     if participation.completed:
-         return jsonify({"message": "Already completed"}), 400
+         return jsonify({"message": "Ya completada"}), 400
 
     data = request.get_json()
     # answers: [{question_id: 1, option_id: 2}, ...]
@@ -226,7 +226,7 @@ def submit_trivia(trivia_id):
     
     db.session.commit()
     
-    return jsonify({"message": "Trivia completed", "score": total_score})
+    return jsonify({"message": "Trivia completada", "score": total_score})
 
 # --- Ranking ---
 @main_bp.route('/trivias/<int:trivia_id>/ranking', methods=['GET'])
