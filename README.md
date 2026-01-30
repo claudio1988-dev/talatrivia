@@ -88,9 +88,3 @@ Esto creará:
   - **Puntuación**: Se calcula automáticamente: 1 pto (Fácil), 2 ptos (Media), 3 ptos (Difícil).
 - `GET /trivias/<id>/ranking`: Ver tabla de posiciones ordenadas por puntaje.
 
-## Decisiones de Diseño
-
-1.  **Base de Datos**: Se migró a **SQLite** para simplificar la infraestructura y hacer el proyecto "autocontenido" y fácil de revisar sin configurar servicios externos de BD.
-2.  **Privacidad**: Se implementaron esquemas de serialización manuales en los endpoints de juego para asegurar que el cliente nunca reciba los datos de las respuestas correctas.
-3.  **Docker**: Se optimizó el Dockerfile y docker-compose para ser ligeros, eliminando la dependencia de un contenedor de Postgres pesado.
-4.  **Validaciones**: Se añadió lógica para impedir que un usuario responda una trivia más de una vez.
